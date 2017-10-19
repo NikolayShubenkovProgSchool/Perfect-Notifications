@@ -475,6 +475,15 @@ public extension NotificationPusher {
 					callback([NotificationResponse(status: .internalServerError, body: [UInt8]())])
 					return
 				}
+				 if responses.contains(where: { response -> Bool in
+                    			return response.stringBody == "Unable to write frame"
+		                }) {
+                		    c.close();
+		                    c.net.close()
+		                    print("will close connection")
+		                }
+		                callback(responses)
+
 				callback(responses)
 			}
 		}
