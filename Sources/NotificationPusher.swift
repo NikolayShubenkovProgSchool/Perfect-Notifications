@@ -482,8 +482,6 @@ public extension NotificationPusher {
 		                    c.net.close()
 		                    print("will close connection")
 		                }
-		                callback(responses)
-
 				callback(responses)
 			}
 		}
