@@ -489,7 +489,8 @@ public extension NotificationPusher {
                 //Sometimes Client is unable to write to stream
                 //try to close and reopen this stream several times
                 if responses.contains(where: { response -> Bool in
-                    return response.stringBody == "Unable to write frame"
+                    return response.stringBody == "Unable to write frame" ||
+                        response.stringBody == "Connection dropped"
                 }) {
                     config.lock.doWithLock {
                         c.close();
