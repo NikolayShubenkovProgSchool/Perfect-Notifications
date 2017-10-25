@@ -460,8 +460,19 @@ public extension NotificationPusher {
                          notificationItems: [APNSNotificationItem],
                          callback: @escaping ([NotificationResponse]) -> ()) {
         
+        return pushAPNS(configurationName:configurationName,
+                        production:production,
+                        deviceTokens:deviceTokens,
+                        notificationItems:notificationItems,
+                        attempts:3,
+                        callback:callback)
+    }
+    
+    private func pushAPNS(configurationName: String, production:Bool, deviceTokens: [String], notificationItems: [APNSNotificationItem], attempts:Int, callback: @escaping ([NotificationResponse]) -> ()) {
+        
         NotificationPusher.getStreamAPNS(configurationName: configurationName, production: production) {
             client, config in
+            
             guard let c = client, let config = config else {
                 callback([NotificationResponse(status: .internalServerError, body: [UInt8]())])
                 return
@@ -475,13 +486,31 @@ public extension NotificationPusher {
                     callback([NotificationResponse(status: .internalServerError, body: [UInt8]())])
                     return
                 }
+                //Sometimes Client is unable to write to stream
+                //try to close and reopen this stream several times
                 if responses.contains(where: { response -> Bool in
                     return response.stringBody == "Unable to write frame"
                 }) {
-                    c.close();
-                    c.net.close()
+                    config.lock.doWithLock {
+                        c.close();
+                        c.net.close()
+                        if let index = config.streams.index(where: { c === $0 }){ //(c as? NotificationHTTP2Client)?.id == ($0 as? NotificationHTTP2Client)?.id){
+                            config.streams.remove(at: index)
+                        }
+                    }
                     print("will close connection")
+                    if (attempts > 0){
+                        print("will try to resend notifications. \(attempts) attempts left")
+                        self.pushAPNS(configurationName: configurationName,
+                                      production: production,
+                                      deviceTokens: deviceTokens,
+                                      notificationItems: notificationItems,
+                                      attempts:attempts - 1,
+                                      callback: callback)
+                        return
+                    }
                 }
+                
                 callback(responses)
             }
         }
